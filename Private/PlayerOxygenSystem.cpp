@@ -61,6 +61,7 @@ void APlayerOxygenSystem::AddOxygen(float Amount)
 {
 	CurrentOxygen = FMath::Clamp(CurrentOxygen + Amount, 0.0f, MaxOxygen);
 	UpdateHUD();
+	
 }
 
 void APlayerOxygenSystem::UpdateHUD()

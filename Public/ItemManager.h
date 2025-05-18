@@ -5,6 +5,9 @@
 #include "PickableItem.h"
 #include "ItemManager.generated.h"
 
+// Forward declarations
+class AOxygenReplenishActor;
+
 USTRUCT(BlueprintType)
 struct FPickableItemData
 {
@@ -52,6 +55,9 @@ public:
     bool IsLookingAtItem() const;
 
     UFUNCTION(BlueprintCallable, Category = "Item Management")
+    bool IsLookingAtReplenishActor() const;
+
+    UFUNCTION(BlueprintCallable, Category = "Item Management")
     bool IsHoldingItem() const { return HeldItem != nullptr; }
 
     UFUNCTION(BlueprintCallable, Category = "Item Management")
@@ -83,6 +89,9 @@ protected:
 
     UPROPERTY()
     APickableItem* HighlightedItem;
+
+    UPROPERTY()
+    AOxygenReplenishActor* HighlightedReplenishActor;
 
     UPROPERTY()
     APickableItem* HeldItem;

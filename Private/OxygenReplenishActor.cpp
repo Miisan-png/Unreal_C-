@@ -32,6 +32,26 @@ void AOxygenReplenishActor::BeginPlay()
 	{
 		PlayerOxygenSystem = Cast<APlayerOxygenSystem>(FoundActors[0]);
 	}
+	
+	if (InteractWidgetClass)
+	{
+		APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+		if (PC)
+		{
+			InteractWidget = CreateWidget<UUserWidget>(PC, InteractWidgetClass);
+			if (InteractWidget)
+			{
+				InteractWidget->AddToViewport(0);
+				InteractWidget->SetVisibility(ESlateVisibility::Hidden);
+				
+				ReplenishLabel = Cast<UTextBlock>(InteractWidget->GetWidgetFromName(TEXT("Rep_Label")));
+				if (ReplenishLabel)
+				{
+					ReplenishLabel->SetText(FText::FromString(TEXT("[E] REPLENISH OXYGEN")));
+				}
+			}
+		}
+	}
 }
 
 void AOxygenReplenishActor::OnInteractionSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -47,6 +67,7 @@ void AOxygenReplenishActor::OnInteractionSphereEndOverlap(UPrimitiveComponent* O
 	if (OtherActor && OtherActor->IsA(ACharacter::StaticClass()))
 	{
 		bCanInteract = false;
+		ShowInteractPrompt(false);
 	}
 }
 
@@ -58,7 +79,16 @@ void AOxygenReplenishActor::Interact(AActor* Interactor)
 		
 		if (bDestroyAfterUse)
 		{
+			ShowInteractPrompt(false);
 			Destroy();
 		}
+	}
+}
+
+void AOxygenReplenishActor::ShowInteractPrompt(bool bShow)
+{
+	if (InteractWidget)
+	{
+		InteractWidget->SetVisibility(bShow ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
 	}
 }

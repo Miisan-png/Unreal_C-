@@ -9,6 +9,7 @@
 #include "ItemNameWidget.h"
 #include "Components/TextBlock.h"
 #include "PickableItem.h"
+#include "OxygenReplenishActor.h"
 
 AMyFPSCharacter::AMyFPSCharacter()
 {
@@ -370,5 +371,21 @@ void AMyFPSCharacter::Interact()
     else if (ItemManagerRef->IsHoldingItem())
     {
         ItemManagerRef->DropItem();
+    }
+    else if (ItemManagerRef->IsLookingAtReplenishActor())
+    {
+        // Find all replenish actors
+        TArray<AActor*> FoundActors;
+        UGameplayStatics::GetAllActorsOfClass(GetWorld(), AOxygenReplenishActor::StaticClass(), FoundActors);
+        
+        for (AActor* Actor : FoundActors)
+        {
+            AOxygenReplenishActor* ReplenishActor = Cast<AOxygenReplenishActor>(Actor);
+            if (ReplenishActor && ReplenishActor->IsInteractable())
+            {
+                ReplenishActor->Interact(this);
+                break;
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Components/TextBlock.h"
 #include "Blueprint/UserWidget.h"
+#include "OxygenReplenishActor.h"
 
 AItemManager::AItemManager()
 {
@@ -184,19 +185,28 @@ void AItemManager::ProcessRaycast()
             UpdateItemNameUI(FText::GetEmpty(), false);
             UE_LOG(LogTemp, Display, TEXT("Holding item, hiding UI"));
         }
+        
+        if (HighlightedReplenishActor)
+        {
+            HighlightedReplenishActor->ShowInteractPrompt(false);
+            HighlightedReplenishActor = nullptr;
+        }
         return;
     }
 
     APickableItem* HitItem = nullptr;
+    AOxygenReplenishActor* HitReplenishActor = nullptr;
+    
     if (bHit && HitResult.GetActor())
     {
         HitItem = Cast<APickableItem>(HitResult.GetActor());
-        if (HitItem)
+        if (!HitItem)
         {
-            UE_LOG(LogTemp, Warning, TEXT("Hit a pickable item: %s"), *HitItem->GetName());
+            HitReplenishActor = Cast<AOxygenReplenishActor>(HitResult.GetActor());
         }
     }
 
+    // Handle PickableItem
     if (HighlightedItem && HighlightedItem != HitItem)
     {
         UE_LOG(LogTemp, Display, TEXT("No longer looking at highlighted item"));
@@ -227,6 +237,34 @@ void AItemManager::ProcessRaycast()
             FText ItemName = HighlightedItem->GetDisplayName();
             UE_LOG(LogTemp, Warning, TEXT("Using item's own name: %s"), *ItemName.ToString());
             UpdateItemNameUI(ItemName, true);
+        }
+        
+        // Hide replenish actor prompt if we're looking at an item
+        if (HighlightedReplenishActor)
+        {
+            HighlightedReplenishActor->ShowInteractPrompt(false);
+            HighlightedReplenishActor = nullptr;
+        }
+    }
+    
+    // Handle OxygenReplenishActor
+    if (HighlightedReplenishActor && HighlightedReplenishActor != HitReplenishActor)
+    {
+        HighlightedReplenishActor->ShowInteractPrompt(false);
+        HighlightedReplenishActor = nullptr;
+    }
+    
+    if (HitReplenishActor && HitReplenishActor != HighlightedReplenishActor && HitReplenishActor->IsInteractable())
+    {
+        HighlightedReplenishActor = HitReplenishActor;
+        HighlightedReplenishActor->ShowInteractPrompt(true);
+        
+        // Hide item UI if we're looking at a replenish actor
+        if (HighlightedItem)
+        {
+            HighlightedItem->Highlight(false);
+            HighlightedItem = nullptr;
+            UpdateItemNameUI(FText::GetEmpty(), false);
         }
     }
 }
@@ -358,4 +396,9 @@ int32 AItemManager::FindItemDataIndex(APickableItem* Item)
 APickableItem* AItemManager::GetHeldItem() const
 {
     return HeldItem;
+}
+
+bool AItemManager::IsLookingAtReplenishActor() const
+{
+    return HighlightedReplenishActor != nullptr;
 }

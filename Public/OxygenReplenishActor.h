@@ -5,6 +5,8 @@
 #include "GameFramework/Actor.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/TextBlock.h"
+#include "Blueprint/UserWidget.h"
 #include "PlayerOxygenSystem.h"
 #include "OxygenReplenishActor.generated.h"
 
@@ -31,6 +33,15 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Oxygen System")
 	bool bDestroyAfterUse = true;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<UUserWidget> InteractWidgetClass;
+	
+	UPROPERTY()
+	UUserWidget* InteractWidget;
+	
+	UPROPERTY()
+	UTextBlock* ReplenishLabel;
 
 	UFUNCTION()
 	void OnInteractionSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -40,6 +51,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Oxygen System")
 	void Interact(AActor* Interactor);
+	
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowInteractPrompt(bool bShow);
+	
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	bool IsInteractable() const { return bCanInteract; }
 
 private:
 	bool bCanInteract;

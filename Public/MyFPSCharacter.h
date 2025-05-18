@@ -4,6 +4,7 @@
 #include "GameFramework/Character.h"
 #include "Camera/CameraComponent.h"
 #include "ItemNameWidget.h"
+#include "InteractManager.h" 
 #include "MyFPSCharacter.generated.h"
 
 class AItemManager;
@@ -73,6 +74,9 @@ protected:
 
     UPROPERTY()
     UItemNameWidget* ItemNameWidget;
+
+    UPROPERTY()
+    AInteractManager* InteractManagerRef;
     
     FRotator InitialCameraRotation;
     FVector InitialCameraLocation;

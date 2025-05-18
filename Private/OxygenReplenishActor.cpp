@@ -1,6 +1,8 @@
 #include "OxygenReplenishActor.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/TextBlock.h"
+#include "Blueprint/UserWidget.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -33,25 +35,32 @@ void AOxygenReplenishActor::BeginPlay()
 		PlayerOxygenSystem = Cast<APlayerOxygenSystem>(FoundActors[0]);
 	}
 	
-	if (InteractWidgetClass)
-	{
-		APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-		if (PC)
-		{
-			InteractWidget = CreateWidget<UUserWidget>(PC, InteractWidgetClass);
-			if (InteractWidget)
-			{
-				InteractWidget->AddToViewport(0);
-				InteractWidget->SetVisibility(ESlateVisibility::Hidden);
-				
-				ReplenishLabel = Cast<UTextBlock>(InteractWidget->GetWidgetFromName(TEXT("Rep_Label")));
-				if (ReplenishLabel)
-				{
-					ReplenishLabel->SetText(FText::FromString(TEXT("[E] REPLENISH OXYGEN")));
-				}
-			}
-		}
-	}
+    // Store the original material
+    if (MeshComponent->GetMaterial(0))
+    {
+        OriginalMaterial = MeshComponent->GetMaterial(0);
+    }
+    
+    // Create interact widget
+    if (InteractWidgetClass)
+    {
+        APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+        if (PC)
+        {
+            InteractWidget = CreateWidget<UUserWidget>(PC, InteractWidgetClass);
+            if (InteractWidget)
+            {
+                InteractWidget->AddToViewport(0);
+                InteractWidget->SetVisibility(ESlateVisibility::Hidden);
+                
+                ReplenishLabel = Cast<UTextBlock>(InteractWidget->GetWidgetFromName(TEXT("Rep_Label")));
+                if (ReplenishLabel)
+                {
+                    ReplenishLabel->SetText(FText::FromString(TEXT("[E] REPLENISH OXYGEN")));
+                }
+            }
+        }
+    }
 }
 
 void AOxygenReplenishActor::OnInteractionSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -67,11 +76,11 @@ void AOxygenReplenishActor::OnInteractionSphereEndOverlap(UPrimitiveComponent* O
 	if (OtherActor && OtherActor->IsA(ACharacter::StaticClass()))
 	{
 		bCanInteract = false;
-		ShowInteractPrompt(false);
+        ShowInteractPrompt(false);
 	}
 }
 
-void AOxygenReplenishActor::Interact(AActor* Interactor)
+void AOxygenReplenishActor::PerformInteraction(AActor* Interactor)
 {
 	if (bCanInteract && PlayerOxygenSystem)
 	{
@@ -79,7 +88,7 @@ void AOxygenReplenishActor::Interact(AActor* Interactor)
 		
 		if (bDestroyAfterUse)
 		{
-			ShowInteractPrompt(false);
+            ShowInteractPrompt(false);
 			Destroy();
 		}
 	}
@@ -87,8 +96,42 @@ void AOxygenReplenishActor::Interact(AActor* Interactor)
 
 void AOxygenReplenishActor::ShowInteractPrompt(bool bShow)
 {
-	if (InteractWidget)
-	{
-		InteractWidget->SetVisibility(bShow ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
-	}
+    if (InteractWidget)
+    {
+        InteractWidget->SetVisibility(bShow ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+    }
+}
+
+// IInteractable interface implementations
+void AOxygenReplenishActor::OnHighlight_Implementation()
+{
+    // Apply highlight material
+    if (HighlightMaterial && MeshComponent)
+    {
+        MeshComponent->SetMaterial(0, HighlightMaterial);
+    }
+}
+
+void AOxygenReplenishActor::OnUnhighlight_Implementation()
+{
+    // Restore original material
+    if (OriginalMaterial && MeshComponent)
+    {
+        MeshComponent->SetMaterial(0, OriginalMaterial);
+    }
+}
+
+void AOxygenReplenishActor::Interact_Implementation(AActor* Interactor)
+{
+    PerformInteraction(Interactor);
+}
+
+bool AOxygenReplenishActor::CanInteract_Implementation() const
+{
+    return bCanInteract;
+}
+
+FText AOxygenReplenishActor::GetInteractionText_Implementation() const
+{
+    return InteractionText;
 }

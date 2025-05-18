@@ -125,6 +125,18 @@ void AMyFPSCharacter::BeginPlay()
             }
         }
     }
+
+    TArray<AActor*> FoundActors;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AInteractManager::StaticClass(), FoundActors);
+    if (FoundActors.Num() > 0)
+    {
+        InteractManagerRef = Cast<AInteractManager>(FoundActors[0]);
+        if (InteractManagerRef)
+        {
+            InteractManagerRef->RegisterPlayerCharacter(this);
+            InteractManagerRef->RegisterPlayerController(Cast<APlayerController>(GetController()));
+        }
+    }
 }
 
 void AMyFPSCharacter::Tick(float DeltaTime)
@@ -361,31 +373,16 @@ void AMyFPSCharacter::PerformCameraRaycast()
 
 void AMyFPSCharacter::Interact()
 {
-    if (!ItemManagerRef)
-        return;
-
-    if (ItemManagerRef->IsLookingAtItem())
+    if (ItemManagerRef && ItemManagerRef->IsLookingAtItem())
     {
         ItemManagerRef->PickupItem();
     }
-    else if (ItemManagerRef->IsHoldingItem())
+    else if (ItemManagerRef && ItemManagerRef->IsHoldingItem())
     {
         ItemManagerRef->DropItem();
     }
-    else if (ItemManagerRef->IsLookingAtReplenishActor())
+    else if (InteractManagerRef)
     {
-        // Find all replenish actors
-        TArray<AActor*> FoundActors;
-        UGameplayStatics::GetAllActorsOfClass(GetWorld(), AOxygenReplenishActor::StaticClass(), FoundActors);
-        
-        for (AActor* Actor : FoundActors)
-        {
-            AOxygenReplenishActor* ReplenishActor = Cast<AOxygenReplenishActor>(Actor);
-            if (ReplenishActor && ReplenishActor->IsInteractable())
-            {
-                ReplenishActor->Interact(this);
-                break;
-            }
-        }
+        InteractManagerRef->TryInteract();
     }
 }

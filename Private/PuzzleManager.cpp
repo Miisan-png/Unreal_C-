@@ -30,11 +30,9 @@ void APuzzleManager::InitializeHUD()
             {
                 HUDWidget->AddToViewport();
 
-                // Get the progress bar and interaction label widgets
                 ProgressBar = Cast<UProgressBar>(HUDWidget->GetWidgetFromName(TEXT("ProgressBar")));
                 InteractLabel = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("InteractLabel")));
 
-                // Hide widgets initially
                 if (ProgressBar)
                 {
                     ProgressBar->SetVisibility(ESlateVisibility::Hidden);
@@ -73,7 +71,6 @@ void APuzzleManager::InitializeHUD()
 
 void APuzzleManager::RegisterMachines()
 {
-    // Find all fixable machines in the level if not set
     if (FixableMachines.Num() == 0)
     {
         TArray<AActor*> FoundActors;
@@ -90,7 +87,6 @@ void APuzzleManager::RegisterMachines()
     }
     else
     {
-        // Set this manager as the puzzle manager for all machines
         for (AP_FixableMachine* Machine : FixableMachines)
         {
             if (Machine)
@@ -136,8 +132,12 @@ void APuzzleManager::OnMachineFixed(AP_FixableMachine* Machine)
     {
         ProgressBar->SetVisibility(ESlateVisibility::Hidden);
     }
+    
+    if (InteractLabel)
+    {
+        InteractLabel->SetVisibility(ESlateVisibility::Hidden);
+    }
 
-    // Check if all machines are fixed
     bool bAllFixed = true;
     for (AP_FixableMachine* FixableMachine : FixableMachines)
     {
@@ -207,6 +207,4 @@ bool APuzzleManager::VerifyWidgets() const
 
 void APuzzleManager::OnAllMachinesFixed()
 {
-    // You can implement what happens when all machines are fixed
-    // For example, trigger an event, open a door, etc.
 }

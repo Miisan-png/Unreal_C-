@@ -7,19 +7,16 @@ AP_FixableMachine::AP_FixableMachine()
 {
     PrimaryActorTick.bCanEverTick = true;
 
-    // Create and setup the cube mesh component
     MachineMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MachineMesh"));
     RootComponent = MachineMesh;
 
-    // Load the cube static mesh
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMeshFinder(TEXT("/Engine/BasicShapes/Cube"));
     if (CubeMeshFinder.Succeeded())
     {
         MachineMesh->SetStaticMesh(CubeMeshFinder.Object);
-        MachineMesh->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f)); // Make it a bit smaller
+        MachineMesh->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
     }
 
-    // Initialize variables
     bIsFixed = false;
     bIsBeingFixed = false;
     FixingProgress = 0.0f;
@@ -29,13 +26,11 @@ void AP_FixableMachine::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Store the original material if not already set
     if (!BrokenMaterial)
     {
         BrokenMaterial = MachineMesh->GetMaterial(0);
     }
 
-    // Set the initial broken material
     if (BrokenMaterial)
     {
         MachineMesh->SetMaterial(0, BrokenMaterial);
@@ -54,7 +49,6 @@ void AP_FixableMachine::Tick(float DeltaTime)
 
 void AP_FixableMachine::OnHighlight_Implementation()
 {
-    // Only show highlight and interaction UI if the machine isn't fixed
     if (!bIsFixed)
     {
         if (HighlightMaterial)
@@ -66,11 +60,17 @@ void AP_FixableMachine::OnHighlight_Implementation()
             PuzzleManagerRef->ShowInteractionUI(true, InteractionText);
         }
     }
+    else
+    {
+        if (PuzzleManagerRef)
+        {
+            PuzzleManagerRef->ShowInteractionUI(false);
+        }
+    }
 }
 
 void AP_FixableMachine::OnUnhighlight_Implementation()
 {
-    // Only change material back if not fixed
     if (!bIsFixed)
     {
         MachineMesh->SetMaterial(0, BrokenMaterial);
@@ -155,6 +155,7 @@ void AP_FixableMachine::CompleteFix()
 
     if (PuzzleManagerRef)
     {
+        PuzzleManagerRef->ShowInteractionUI(false);
         PuzzleManagerRef->OnMachineFixed(this);
     }
 }

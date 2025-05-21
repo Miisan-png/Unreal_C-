@@ -81,12 +81,20 @@ void AWheepingAngle::Tick(float DeltaTime)
             {
                 if (bCanMove)
                 {
+                    // Ensure movement happens only on X and Y axis (no Z/vertical movement)
                     FVector MoveDirection = -DirectionToActor;
+                    MoveDirection.Z = 0.0f; // Prevent any vertical movement
+                    MoveDirection.Normalize(); // Re-normalize after zeroing Z
+                    
                     FVector NewLocation = GetActorLocation() + MoveDirection * DeltaTime * MovementSpeed;
+                    // Preserve original Z position to prevent floating
+                    NewLocation.Z = GetActorLocation().Z;
                     SetActorLocation(NewLocation);
                 }
 
                 FVector ToPlayer = PlayerLocation - GetActorLocation();
+                ToPlayer.Z = 0.0f; // Make sure rotation calculation ignores height differences
+                ToPlayer.Normalize();
                 FRotator LookAtRotation = FRotationMatrix::MakeFromX(ToPlayer).Rotator();
                 LookAtRotation.Yaw += YawOffset;
                 LookAtRotation.Yaw = FMath::Fmod(LookAtRotation.Yaw + 360.f, 360.f);
@@ -95,6 +103,7 @@ void AWheepingAngle::Tick(float DeltaTime)
         }
     }
 }
+
 void AWheepingAngle::BreakAngel()
 {
     if (UWorld* World = GetWorld())
@@ -110,10 +119,11 @@ void AWheepingAngle::BreakAngel()
             UStaticMesh* Mesh = ShardMeshes[MeshIndex];
             if (!Mesh) continue;
 
+            // Modified spawn location to have less vertical offset
             FVector Offset = FVector(
                 FMath::FRandRange(-50.f, 50.f),
                 FMath::FRandRange(-50.f, 50.f),
-                FMath::FRandRange(0.f, 100.f)
+                FMath::FRandRange(-10.f, 10.f) // Reduced vertical spread
             );
             FVector SpawnLocation = Origin + Offset;
 
@@ -131,10 +141,11 @@ void AWheepingAngle::BreakAngel()
                 float Scale = FMath::FRandRange(MinScale, MaxScale);
                 Shard->SetActorScale3D(FVector(Scale));
 
+                // Modified impulse to have more controlled upward force
                 FVector Impulse = FVector(
                     FMath::FRandRange(-300.f, 300.f),
                     FMath::FRandRange(-300.f, 300.f),
-                    FMath::FRandRange(200.f, 600.f)
+                    FMath::FRandRange(50.f, 150.f) // Reduced upward impulse
                 );
                 MeshComp->AddImpulse(Impulse, NAME_None, true);
 
@@ -149,7 +160,6 @@ void AWheepingAngle::BreakAngel()
         GetWorldTimerManager().SetTimerForNextTick(this, &AWheepingAngle::DestroyAngel);
     }
 }
-
 
 void AWheepingAngle::DestroyAngel()
 {

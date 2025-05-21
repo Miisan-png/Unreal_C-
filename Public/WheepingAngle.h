@@ -64,6 +64,7 @@ public:
     float DebugBreakDelay;
 
 private:
+    UPROPERTY(VisibleAnywhere, Category = "Components")
     USceneComponent* Root;
 
     bool bShouldBreak;

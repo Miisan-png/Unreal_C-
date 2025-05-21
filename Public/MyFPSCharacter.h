@@ -27,7 +27,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Raycast")
     float GetRaycastDistance() const { return RaycastDistance; }
 
+    // We'll keep this for backward compatibility but primarily use Start/StopInteract
     void Interact();
+    
+    // New functions for handling held interaction
+    void StartInteract();
+    void StopInteract();
 
 protected:
     virtual void BeginPlay() override;

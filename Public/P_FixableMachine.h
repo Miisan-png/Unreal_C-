@@ -43,6 +43,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Machine")
     float TimeToFix = 3.0f;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Machine", meta = (ClampMin = "0.0", ClampMax = "5.0"))
+    float ProgressDecayRate = 1.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Machine")
     FText InteractionText = FText::FromString("Hold [E] to Fix");
@@ -61,6 +64,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Machine")
     bool IsBeingFixed() const { return bIsBeingFixed; }
+    
+    UFUNCTION(BlueprintPure, Category = "Machine")
+    float GetFixingProgress() const { return FixingProgress; }
 
 protected:
     UPROPERTY()

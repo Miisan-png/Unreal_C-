@@ -1,11 +1,11 @@
-﻿// InteractManager.cpp
-#include "InteractManager.h"
+﻿#include "InteractManager.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Character.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/TextBlock.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
+#include "P_FixableMachine.h" 
 
 AInteractManager::AInteractManager()
 {
@@ -27,6 +27,15 @@ void AInteractManager::Tick(float DeltaTime)
     Super::Tick(DeltaTime);
 
     PerformInteractionRaycast();
+    
+    if (bIsInteracting && CurrentInteractable.GetObject())
+    {
+        AP_FixableMachine* Machine = Cast<AP_FixableMachine>(CurrentInteractable.GetObject());
+        if (Machine && !Machine->IsFixed() && !Machine->IsBeingFixed())
+        {
+            CurrentInteractable->Execute_Interact(CurrentInteractable.GetObject(), PlayerCharacter);
+        }
+    }
 }
 
 void AInteractManager::RegisterPlayerController(APlayerController* PC)
@@ -55,11 +64,38 @@ bool AInteractManager::IsLookingAtInteractable() const
     return CurrentInteractable.GetObject() != nullptr;
 }
 
+void AInteractManager::StartInteract()
+{
+    if (IsLookingAtInteractable())
+    {
+        bIsInteracting = true;
+        CurrentInteractable->Execute_Interact(CurrentInteractable.GetObject(), PlayerCharacter);
+    }
+}
+
+void AInteractManager::StopInteract()
+{
+    bIsInteracting = false;
+    
+    if (CurrentInteractable.GetObject())
+    {
+        AP_FixableMachine* Machine = Cast<AP_FixableMachine>(CurrentInteractable.GetObject());
+        if (Machine && Machine->IsBeingFixed() && !Machine->IsFixed())
+        {
+            Machine->StopFixing();
+        }
+    }
+}
+
 void AInteractManager::TryInteract()
 {
     if (IsLookingAtInteractable())
     {
-        CurrentInteractable->Execute_Interact(CurrentInteractable.GetObject(), PlayerCharacter);
+        AP_FixableMachine* Machine = Cast<AP_FixableMachine>(CurrentInteractable.GetObject());
+        if (!Machine)
+        {
+            CurrentInteractable->Execute_Interact(CurrentInteractable.GetObject(), PlayerCharacter);
+        }
     }
 }
 
@@ -104,7 +140,6 @@ void AInteractManager::PerformInteractionRaycast()
         );
     }
 
-    // Check if we're no longer looking at the current interactable
     if (CurrentInteractable.GetObject() != nullptr && 
         (!bHit || !HitResult.GetActor() || !HitResult.GetActor()->GetClass()->ImplementsInterface(UInteractable::StaticClass())))
     {
@@ -113,7 +148,6 @@ void AInteractManager::PerformInteractionRaycast()
         UpdatePromptVisibility(false);
     }
 
-    // Check if we're looking at a new interactable
     if (bHit && HitResult.GetActor() && HitResult.GetActor()->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
     {
         TScriptInterface<IInteractable> NewInteractable;
@@ -122,7 +156,6 @@ void AInteractManager::PerformInteractionRaycast()
 
         if (NewInteractable.GetObject() != CurrentInteractable.GetObject())
         {
-            // We're looking at a new interactable
             if (CurrentInteractable.GetObject() != nullptr)
             {
                 CurrentInteractable->Execute_OnUnhighlight(CurrentInteractable.GetObject());

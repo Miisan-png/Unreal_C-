@@ -41,9 +41,21 @@ void AP_FixableMachine::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
+    if (bIsFixed)
+        return;
+
     if (bIsBeingFixed)
     {
         UpdateFixingProgress(DeltaTime);
+    }
+    else if (FixingProgress > 0.0f)
+    {
+        FixingProgress = FMath::Max(0.0f, FixingProgress - (DeltaTime / TimeToFix) * ProgressDecayRate);
+        
+        if (PuzzleManagerRef)
+        {
+            PuzzleManagerRef->UpdateFixingProgress(FixingProgress);
+        }
     }
 }
 
@@ -78,6 +90,11 @@ void AP_FixableMachine::OnUnhighlight_Implementation()
         {
             PuzzleManagerRef->ShowInteractionUI(false);
         }
+    }
+    
+    if (bIsBeingFixed)
+    {
+        StopFixing();
     }
 }
 
@@ -116,7 +133,6 @@ void AP_FixableMachine::StopFixing()
     if (bIsBeingFixed)
     {
         bIsBeingFixed = false;
-        FixingProgress = 0.0f;
         if (PuzzleManagerRef)
         {
             PuzzleManagerRef->OnMachineStopFixing(this);
@@ -156,6 +172,7 @@ void AP_FixableMachine::CompleteFix()
     if (PuzzleManagerRef)
     {
         PuzzleManagerRef->ShowInteractionUI(false);
+        PuzzleManagerRef->HideProgressBar();
         PuzzleManagerRef->OnMachineFixed(this);
     }
 }

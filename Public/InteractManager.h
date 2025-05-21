@@ -1,5 +1,4 @@
-﻿// InteractManager.h
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -30,6 +29,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	void TryInteract();
+    
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void StartInteract();
+    
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void StopInteract();
 
 protected:
 	virtual void BeginPlay() override;
@@ -54,6 +59,9 @@ protected:
 
 	UPROPERTY()
 	TScriptInterface<IInteractable> CurrentInteractable;
+    
+	UPROPERTY()
+	bool bIsInteracting = false;
 
 	void PerformInteractionRaycast();
 	void UpdatePromptVisibility(bool bVisible, const FText& Text = FText::GetEmpty());

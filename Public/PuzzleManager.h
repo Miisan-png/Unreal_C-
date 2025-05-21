@@ -50,6 +50,9 @@ public:
 
 	// Show/hide interaction UI
 	void ShowInteractionUI(bool bShow, const FText& Text = FText::GetEmpty());
+    
+	// Explicitly hide progress bar
+	void HideProgressBar();
 
 protected:
 	void InitializeHUD();

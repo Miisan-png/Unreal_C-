@@ -152,9 +152,6 @@ void AMyFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-    // Remove this binding to UseHeldItem
-    // PlayerInputComponent->BindAction("Item_Use", IE_Pressed, this, &AMyFPSCharacter::UseHeldItem);
-
     PlayerInputComponent->BindAxis("MoveForward", this, &AMyFPSCharacter::MoveForward);
     PlayerInputComponent->BindAxis("MoveRight", this, &AMyFPSCharacter::MoveRight);
 
@@ -167,7 +164,8 @@ void AMyFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
     PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMyFPSCharacter::StartSprint);
     PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMyFPSCharacter::StopSprint);
 
-    PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &AMyFPSCharacter::Interact);
+    PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &AMyFPSCharacter::StartInteract);
+    PlayerInputComponent->BindAction("Interact", IE_Released, this, &AMyFPSCharacter::StopInteract);
 }
 
 void AMyFPSCharacter::MoveForward(float Value)
@@ -371,7 +369,8 @@ void AMyFPSCharacter::PerformCameraRaycast()
     }
 }
 
-void AMyFPSCharacter::Interact()
+
+void AMyFPSCharacter::StartInteract()
 {
     if (ItemManagerRef && ItemManagerRef->IsLookingAtItem())
     {
@@ -383,6 +382,14 @@ void AMyFPSCharacter::Interact()
     }
     else if (InteractManagerRef)
     {
-        InteractManagerRef->TryInteract();
+        InteractManagerRef->StartInteract();
+    }
+}
+
+void AMyFPSCharacter::StopInteract()
+{
+    if (InteractManagerRef)
+    {
+        InteractManagerRef->StopInteract();
     }
 }

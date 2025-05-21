@@ -208,3 +208,12 @@ bool APuzzleManager::VerifyWidgets() const
 void APuzzleManager::OnAllMachinesFixed()
 {
 }
+
+
+void APuzzleManager::HideProgressBar()
+{
+    if (ProgressBar)
+    {
+        ProgressBar->SetVisibility(ESlateVisibility::Hidden);
+    }
+}

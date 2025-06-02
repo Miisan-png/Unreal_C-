@@ -1,9 +1,10 @@
-﻿#pragma once
+﻿// PuzzleManager.h - Updated with smooth transitions
+#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Components/SpotLightComponent.h"
-#include "Engine/SpotLight.h"
+#include "Components/PointLightComponent.h"
+#include "Engine/PointLight.h"
 #include "PuzzleManager.generated.h"
 
 class AP_FixableMachine;
@@ -30,12 +31,12 @@ struct FPuzzleData
 };
 
 USTRUCT(BlueprintType)
-struct FSpotLightData
+struct FPointLightData
 {
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
-    ASpotLight* SpotLight;
+    APointLight* PointLight;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
     FLinearColor StartColor = FLinearColor::Red;
@@ -51,6 +52,20 @@ struct FSpotLightData
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
     int32 AssociatedPuzzleIndex = -1;
+
+    // Current interpolated values for smooth transitions
+    UPROPERTY()
+    FLinearColor CurrentColor;
+    
+    UPROPERTY()
+    float CurrentIntensity;
+    
+    // Target values for interpolation
+    UPROPERTY()
+    FLinearColor TargetColor;
+    
+    UPROPERTY()
+    float TargetIntensity;
 };
 
 UCLASS()
@@ -63,6 +78,7 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+    virtual void Tick(float DeltaTime) override;
 
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
@@ -72,10 +88,17 @@ public:
     TArray<FPuzzleData> PuzzleData;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
-    TArray<FSpotLightData> SpotLights;
+    TArray<FPointLightData> PointLights;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
     float GlobalProgressionPercentage = 0.0f;
+
+    // Transition settings for smooth color changes
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    float TransitionSpeed = 2.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    bool bUseInterpolation = true;
 
     UPROPERTY()
     UUserWidget* HUDWidget;
@@ -100,14 +123,17 @@ public:
     float GetGlobalProgressionPercentage() const;
 
     UFUNCTION(BlueprintCallable, Category = "Lighting")
-    void UpdateSpotLights();
+    void UpdatePointLights();
+
+    UFUNCTION(BlueprintCallable, Category = "Lighting")
+    void FindAndAssignPointLights();
 
 protected:
     void InitializeHUD();
     void RegisterMachines();
     bool VerifyWidgets() const;
     void CalculateGlobalProgression();
-    void UpdateSpotLightForPuzzle(int32 PuzzleIndex, float CompletionPercentage);
+    void UpdatePointLightForPuzzle(int32 PuzzleIndex, float CompletionPercentage);
     int32 FindPuzzleIndex(AP_FixableMachine* Machine);
 
     UFUNCTION()

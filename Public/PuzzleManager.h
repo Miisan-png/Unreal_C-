@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Components/SpotLightComponent.h"
+#include "Engine/SpotLight.h"
 #include "PuzzleManager.generated.h"
 
 class AP_FixableMachine;
@@ -9,60 +11,108 @@ class UUserWidget;
 class UProgressBar;
 class UTextBlock;
 
+USTRUCT(BlueprintType)
+struct FPuzzleData
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
+    AP_FixableMachine* Machine;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
+    float CompletionPercentage = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
+    int32 PuzzleOrder = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
+    bool bIsCompleted = false;
+};
+
+USTRUCT(BlueprintType)
+struct FSpotLightData
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    ASpotLight* SpotLight;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    FLinearColor StartColor = FLinearColor::Red;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    FLinearColor EndColor = FLinearColor::Green;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    float StartIntensity = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    float EndIntensity = 3000.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    int32 AssociatedPuzzleIndex = -1;
+};
+
 UCLASS()
 class FIRSTPERSONTEST_API APuzzleManager : public AActor
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	APuzzleManager();
+    APuzzleManager();
 
 protected:
-	virtual void BeginPlay() override;
+    virtual void BeginPlay() override;
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
-	TSubclassOf<UUserWidget> HUDWidgetClass;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+    TSubclassOf<UUserWidget> HUDWidgetClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
-	TArray<AP_FixableMachine*> FixableMachines;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
+    TArray<FPuzzleData> PuzzleData;
 
-	UPROPERTY()
-	UUserWidget* HUDWidget;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    TArray<FSpotLightData> SpotLights;
 
-	UPROPERTY()
-	UProgressBar* ProgressBar;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
+    float GlobalProgressionPercentage = 0.0f;
 
-	UPROPERTY()
-	UTextBlock* InteractLabel;
+    UPROPERTY()
+    UUserWidget* HUDWidget;
 
-	// Called when a machine starts being fixed
-	void OnMachineStartFixing(AP_FixableMachine* Machine);
+    UPROPERTY()
+    UProgressBar* ProgressBar;
 
-	// Called when a machine stops being fixed
-	void OnMachineStopFixing(AP_FixableMachine* Machine);
+    UPROPERTY()
+    UTextBlock* InteractLabel;
 
-	// Called when a machine is completely fixed
-	void OnMachineFixed(AP_FixableMachine* Machine);
+    void OnMachineStartFixing(AP_FixableMachine* Machine);
+    void OnMachineStopFixing(AP_FixableMachine* Machine);
+    void OnMachineFixed(AP_FixableMachine* Machine);
+    void UpdateFixingProgress(float Progress);
+    void ShowInteractionUI(bool bShow, const FText& Text = FText::GetEmpty());
+    void HideProgressBar();
 
-	// Updates the progress bar
-	void UpdateFixingProgress(float Progress);
+    UFUNCTION(BlueprintCallable, Category = "Puzzle")
+    float GetPuzzleCompletionPercentage(int32 PuzzleIndex) const;
 
-	// Show/hide interaction UI
-	void ShowInteractionUI(bool bShow, const FText& Text = FText::GetEmpty());
-    
-	// Explicitly hide progress bar
-	void HideProgressBar();
+    UFUNCTION(BlueprintCallable, Category = "Puzzle")
+    float GetGlobalProgressionPercentage() const;
+
+    UFUNCTION(BlueprintCallable, Category = "Lighting")
+    void UpdateSpotLights();
 
 protected:
-	void InitializeHUD();
-	void RegisterMachines();
-	bool VerifyWidgets() const;
+    void InitializeHUD();
+    void RegisterMachines();
+    bool VerifyWidgets() const;
+    void CalculateGlobalProgression();
+    void UpdateSpotLightForPuzzle(int32 PuzzleIndex, float CompletionPercentage);
+    int32 FindPuzzleIndex(AP_FixableMachine* Machine);
 
-	UFUNCTION()
-	void OnAllMachinesFixed();
+    UFUNCTION()
+    void OnAllMachinesFixed();
 
-	// Keep track of currently highlighted machine
-	UPROPERTY()
-	AP_FixableMachine* CurrentHighlightedMachine;
+    UPROPERTY()
+    AP_FixableMachine* CurrentHighlightedMachine;
 };

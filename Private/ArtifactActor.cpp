@@ -28,6 +28,17 @@ AArtifactActor::AArtifactActor()
     ArtifactText = FText::FromString(TEXT("This is an ancient artifact with mysterious properties."));
     InteractionText = FText::FromString(TEXT("[E] Read Artifact"));
     CloseInteractionText = FText::FromString(TEXT("[E] Close"));
+    
+    // Initialize all widget pointers to nullptr
+    ArtifactWidget = nullptr;
+    TitleLabel = nullptr;
+    ContentLabel = nullptr;
+    InteractionLabel = nullptr;
+    Image_1 = nullptr;
+    Image_0 = nullptr;
+    Image = nullptr;
+    OriginalMaterial = nullptr;
+    
     bCanInteract = false;
     bIsWidgetOpen = false;
     bShowingInteractionOnly = false;
@@ -35,28 +46,37 @@ AArtifactActor::AArtifactActor()
 
 AArtifactActor::~AArtifactActor()
 {
-    if (ArtifactWidget && IsValid(ArtifactWidget))
+    // Only try to clean up widget if it's valid and we're not in garbage collection
+    if (ArtifactWidget && IsValid(ArtifactWidget) && !IsEngineExitRequested())
     {
-        ArtifactWidget->RemoveFromParent();
-        ArtifactWidget = nullptr;
+        if (ArtifactWidget->IsInViewport())
+        {
+            ArtifactWidget->RemoveFromParent();
+        }
     }
     
+    // Clear all widget references - don't delete them as UE handles that
+    ArtifactWidget = nullptr;
     TitleLabel = nullptr;
     ContentLabel = nullptr;
     InteractionLabel = nullptr;
     Image_1 = nullptr;
     Image_0 = nullptr;
     Image = nullptr;
+    OriginalMaterial = nullptr;
 }
 
 void AArtifactActor::BeginPlay()
 {
     Super::BeginPlay();
 
-    InteractionSphere->OnComponentBeginOverlap.AddDynamic(this, &AArtifactActor::OnInteractionSphereBeginOverlap);
-    InteractionSphere->OnComponentEndOverlap.AddDynamic(this, &AArtifactActor::OnInteractionSphereEndOverlap);
+    if (InteractionSphere)
+    {
+        InteractionSphere->OnComponentBeginOverlap.AddDynamic(this, &AArtifactActor::OnInteractionSphereBeginOverlap);
+        InteractionSphere->OnComponentEndOverlap.AddDynamic(this, &AArtifactActor::OnInteractionSphereEndOverlap);
+    }
 
-    if (MeshComponent->GetMaterial(0))
+    if (MeshComponent && MeshComponent->GetMaterial(0))
     {
         OriginalMaterial = MeshComponent->GetMaterial(0);
     }
@@ -100,7 +120,7 @@ void AArtifactActor::OnInteractionSphereEndOverlap(UPrimitiveComponent* Overlapp
 
 void AArtifactActor::ShowInteractionLabel()
 {
-    if (ArtifactWidget && !bIsWidgetOpen)
+    if (ArtifactWidget && !bIsWidgetOpen && IsValid(ArtifactWidget))
     {
         if (TitleLabel)
         {
@@ -129,7 +149,7 @@ void AArtifactActor::ShowInteractionLabel()
         }
         
         ArtifactWidget->AddToViewport(100);
-        bIsWidgetOpen = true;
+        // Fixed: Don't set bIsWidgetOpen to true here, only bShowingInteractionOnly
         bShowingInteractionOnly = true;
 
         APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
@@ -143,7 +163,7 @@ void AArtifactActor::ShowInteractionLabel()
 
 void AArtifactActor::ShowFullArtifactWidget()
 {
-    if (ArtifactWidget && bIsWidgetOpen)
+    if (ArtifactWidget && bShowingInteractionOnly && IsValid(ArtifactWidget))
     {
         if (TitleLabel)
         {
@@ -169,9 +189,11 @@ void AArtifactActor::ShowFullArtifactWidget()
         }
         if (InteractionLabel)
         {
-            InteractionLabel->SetVisibility(ESlateVisibility::Hidden);
+            InteractionLabel->SetText(CloseInteractionText);
+            InteractionLabel->SetVisibility(ESlateVisibility::Visible);
         }
         
+        bIsWidgetOpen = true;
         bShowingInteractionOnly = false;
         
         APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
@@ -185,7 +207,7 @@ void AArtifactActor::ShowFullArtifactWidget()
 
 void AArtifactActor::HideArtifactWidget()
 {
-    if (ArtifactWidget && bIsWidgetOpen && IsValid(ArtifactWidget))
+    if (ArtifactWidget && IsValid(ArtifactWidget) && ArtifactWidget->IsInViewport())
     {
         ArtifactWidget->RemoveFromParent();
         bIsWidgetOpen = false;
@@ -239,5 +261,13 @@ bool AArtifactActor::CanInteract_Implementation() const
 
 FText AArtifactActor::GetInteractionText_Implementation() const
 {
+    if (bShowingInteractionOnly)
+    {
+        return InteractionText;
+    }
+    else if (bIsWidgetOpen)
+    {
+        return CloseInteractionText;
+    }
     return FText::GetEmpty();
 }

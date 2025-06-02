@@ -21,7 +21,6 @@ protected:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaTime) override;
 
-    // IInteractable Interface Implementation
     virtual void OnHighlight_Implementation() override;
     virtual void OnUnhighlight_Implementation() override;
     virtual void Interact_Implementation(AActor* Interactor) override;

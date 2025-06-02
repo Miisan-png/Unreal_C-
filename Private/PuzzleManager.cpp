@@ -4,6 +4,8 @@
 #include "Components/TextBlock.h"
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
+#include "Components/SpotLightComponent.h"
+#include "Engine/SpotLight.h"
 
 APuzzleManager::APuzzleManager()
 {
@@ -16,6 +18,7 @@ void APuzzleManager::BeginPlay()
     
     InitializeHUD();
     RegisterMachines();
+    UpdateSpotLights();
 }
 
 void APuzzleManager::InitializeHUD()
@@ -36,63 +39,24 @@ void APuzzleManager::InitializeHUD()
                 if (ProgressBar)
                 {
                     ProgressBar->SetVisibility(ESlateVisibility::Hidden);
-                    UE_LOG(LogTemp, Warning, TEXT("ProgressBar found and initialized"));
-                }
-                else
-                {
-                    UE_LOG(LogTemp, Error, TEXT("ProgressBar widget not found! Make sure your HUD has a ProgressBar named 'ProgressBar'"));
                 }
 
                 if (InteractLabel)
                 {
                     InteractLabel->SetVisibility(ESlateVisibility::Hidden);
-                    UE_LOG(LogTemp, Warning, TEXT("InteractLabel found and initialized"));
-                }
-                else
-                {
-                    UE_LOG(LogTemp, Error, TEXT("InteractLabel widget not found! Make sure your HUD has a TextBlock named 'InteractLabel'"));
                 }
             }
-            else
-            {
-                UE_LOG(LogTemp, Error, TEXT("Failed to create HUD Widget!"));
-            }
         }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("Failed to get PlayerController!"));
-        }
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("HUDWidgetClass not set in PuzzleManager!"));
     }
 }
 
 void APuzzleManager::RegisterMachines()
 {
-    if (FixableMachines.Num() == 0)
+    for (int32 i = 0; i < PuzzleData.Num(); ++i)
     {
-        TArray<AActor*> FoundActors;
-        UGameplayStatics::GetAllActorsOfClass(GetWorld(), AP_FixableMachine::StaticClass(), FoundActors);
-        
-        for (AActor* Actor : FoundActors)
+        if (PuzzleData[i].Machine)
         {
-            if (AP_FixableMachine* Machine = Cast<AP_FixableMachine>(Actor))
-            {
-                FixableMachines.Add(Machine);
-                Machine->SetPuzzleManager(this);
-            }
-        }
-    }
-    else
-    {
-        for (AP_FixableMachine* Machine : FixableMachines)
-        {
-            if (Machine)
-            {
-                Machine->SetPuzzleManager(this);
-            }
+            PuzzleData[i].Machine->SetPuzzleManager(this);
         }
     }
 }
@@ -101,12 +65,10 @@ void APuzzleManager::OnMachineStartFixing(AP_FixableMachine* Machine)
 {
     if (!VerifyWidgets()) return;
 
-    UE_LOG(LogTemp, Warning, TEXT("Machine started fixing"));
     if (ProgressBar)
     {
         ProgressBar->SetVisibility(ESlateVisibility::Visible);
         ProgressBar->SetPercent(0.0f);
-        UE_LOG(LogTemp, Warning, TEXT("Progress bar shown and set to 0"));
     }
 }
 
@@ -114,12 +76,10 @@ void APuzzleManager::OnMachineStopFixing(AP_FixableMachine* Machine)
 {
     if (!VerifyWidgets()) return;
 
-    UE_LOG(LogTemp, Warning, TEXT("Machine stopped fixing"));
     if (ProgressBar)
     {
         ProgressBar->SetVisibility(ESlateVisibility::Hidden);
         ProgressBar->SetPercent(0.0f);
-        UE_LOG(LogTemp, Warning, TEXT("Progress bar hidden"));
     }
 }
 
@@ -127,7 +87,14 @@ void APuzzleManager::OnMachineFixed(AP_FixableMachine* Machine)
 {
     if (!VerifyWidgets()) return;
 
-    UE_LOG(LogTemp, Warning, TEXT("Machine fixed"));
+    int32 PuzzleIndex = FindPuzzleIndex(Machine);
+    if (PuzzleIndex != -1)
+    {
+        PuzzleData[PuzzleIndex].CompletionPercentage = 100.0f;
+        PuzzleData[PuzzleIndex].bIsCompleted = true;
+        UpdateSpotLightForPuzzle(PuzzleIndex, 100.0f);
+    }
+
     if (ProgressBar)
     {
         ProgressBar->SetVisibility(ESlateVisibility::Hidden);
@@ -138,10 +105,12 @@ void APuzzleManager::OnMachineFixed(AP_FixableMachine* Machine)
         InteractLabel->SetVisibility(ESlateVisibility::Hidden);
     }
 
+    CalculateGlobalProgression();
+
     bool bAllFixed = true;
-    for (AP_FixableMachine* FixableMachine : FixableMachines)
+    for (const FPuzzleData& Puzzle : PuzzleData)
     {
-        if (FixableMachine && !FixableMachine->IsFixed())
+        if (Puzzle.Machine && !Puzzle.Machine->IsFixed())
         {
             bAllFixed = false;
             break;
@@ -162,7 +131,18 @@ void APuzzleManager::UpdateFixingProgress(float Progress)
     {
         ProgressBar->SetVisibility(ESlateVisibility::Visible);
         ProgressBar->SetPercent(Progress);
-        UE_LOG(LogTemp, Display, TEXT("Progress updated: %f"), Progress);
+    }
+
+    AP_FixableMachine* CurrentMachine = CurrentHighlightedMachine;
+    if (CurrentMachine)
+    {
+        int32 PuzzleIndex = FindPuzzleIndex(CurrentMachine);
+        if (PuzzleIndex != -1)
+        {
+            PuzzleData[PuzzleIndex].CompletionPercentage = Progress * 100.0f;
+            UpdateSpotLightForPuzzle(PuzzleIndex, Progress * 100.0f);
+            CalculateGlobalProgression();
+        }
     }
 }
 
@@ -176,39 +156,18 @@ void APuzzleManager::ShowInteractionUI(bool bShow, const FText& Text)
         if (bShow)
         {
             InteractLabel->SetText(Text);
-            UE_LOG(LogTemp, Display, TEXT("Showing interaction text: %s"), *Text.ToString());
-        }
-        else
-        {
-            UE_LOG(LogTemp, Display, TEXT("Hiding interaction text"));
         }
     }
 }
 
 bool APuzzleManager::VerifyWidgets() const
 {
-    if (!HUDWidget)
-    {
-        UE_LOG(LogTemp, Error, TEXT("HUDWidget is null!"));
-        return false;
-    }
-    if (!ProgressBar)
-    {
-        UE_LOG(LogTemp, Error, TEXT("ProgressBar is null!"));
-        return false;
-    }
-    if (!InteractLabel)
-    {
-        UE_LOG(LogTemp, Error, TEXT("InteractLabel is null!"));
-        return false;
-    }
-    return true;
+    return HUDWidget && ProgressBar && InteractLabel;
 }
 
 void APuzzleManager::OnAllMachinesFixed()
 {
 }
-
 
 void APuzzleManager::HideProgressBar()
 {
@@ -216,4 +175,82 @@ void APuzzleManager::HideProgressBar()
     {
         ProgressBar->SetVisibility(ESlateVisibility::Hidden);
     }
+}
+
+float APuzzleManager::GetPuzzleCompletionPercentage(int32 PuzzleIndex) const
+{
+    if (PuzzleIndex >= 0 && PuzzleIndex < PuzzleData.Num())
+    {
+        return PuzzleData[PuzzleIndex].CompletionPercentage;
+    }
+    return 0.0f;
+}
+
+float APuzzleManager::GetGlobalProgressionPercentage() const
+{
+    return GlobalProgressionPercentage;
+}
+
+void APuzzleManager::CalculateGlobalProgression()
+{
+    if (PuzzleData.Num() == 0)
+    {
+        GlobalProgressionPercentage = 0.0f;
+        return;
+    }
+
+    float TotalCompletion = 0.0f;
+    for (const FPuzzleData& Puzzle : PuzzleData)
+    {
+        TotalCompletion += Puzzle.CompletionPercentage;
+    }
+
+    GlobalProgressionPercentage = TotalCompletion / PuzzleData.Num();
+}
+
+void APuzzleManager::UpdateSpotLights()
+{
+    for (int32 i = 0; i < SpotLights.Num(); ++i)
+    {
+        FSpotLightData& LightData = SpotLights[i];
+        if (LightData.SpotLight && LightData.AssociatedPuzzleIndex >= 0 && LightData.AssociatedPuzzleIndex < PuzzleData.Num())
+        {
+            float CompletionPercentage = PuzzleData[LightData.AssociatedPuzzleIndex].CompletionPercentage;
+            UpdateSpotLightForPuzzle(LightData.AssociatedPuzzleIndex, CompletionPercentage);
+        }
+    }
+}
+
+void APuzzleManager::UpdateSpotLightForPuzzle(int32 PuzzleIndex, float CompletionPercentage)
+{
+    for (FSpotLightData& LightData : SpotLights)
+    {
+        if (LightData.AssociatedPuzzleIndex == PuzzleIndex && LightData.SpotLight)
+        {
+            float Alpha = CompletionPercentage / 100.0f;
+            Alpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
+
+            FLinearColor NewColor = FMath::Lerp(LightData.StartColor, LightData.EndColor, Alpha);
+            float NewIntensity = FMath::Lerp(LightData.StartIntensity, LightData.EndIntensity, Alpha);
+
+            USpotLightComponent* SpotLightComp = Cast<USpotLightComponent>(LightData.SpotLight->GetLightComponent());
+            if (SpotLightComp)
+            {
+                SpotLightComp->SetLightColor(NewColor);
+                SpotLightComp->SetIntensity(NewIntensity);
+            }
+        }
+    }
+}
+
+int32 APuzzleManager::FindPuzzleIndex(AP_FixableMachine* Machine)
+{
+    for (int32 i = 0; i < PuzzleData.Num(); ++i)
+    {
+        if (PuzzleData[i].Machine == Machine)
+        {
+            return i;
+        }
+    }
+    return -1;
 }

@@ -1,5 +1,4 @@
-﻿// PuzzleManager.h - Updated with smooth transitions
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -28,6 +27,15 @@ struct FPuzzleData
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
     bool bIsCompleted = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
+    FText ObjectiveText = FText::FromString(TEXT("OBJECTIVE: FIX ENGINE"));
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
+    FText TaskText = FText::FromString(TEXT("Find the broken engine and hold E to repair it"));
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
+    bool bIsActive = false;
 };
 
 USTRUCT(BlueprintType)
@@ -53,14 +61,12 @@ struct FPointLightData
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
     int32 AssociatedPuzzleIndex = -1;
 
-    // Current interpolated values for smooth transitions
     UPROPERTY()
     FLinearColor CurrentColor;
     
     UPROPERTY()
     float CurrentIntensity;
     
-    // Target values for interpolation
     UPROPERTY()
     FLinearColor TargetColor;
     
@@ -75,6 +81,7 @@ class FIRSTPERSONTEST_API APuzzleManager : public AActor
 
 public:
     APuzzleManager();
+    virtual ~APuzzleManager();
 
 protected:
     virtual void BeginPlay() override;
@@ -83,6 +90,9 @@ protected:
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
     TSubclassOf<UUserWidget> HUDWidgetClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+    TSubclassOf<UUserWidget> PlayerHUDWidgetClass;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
     TArray<FPuzzleData> PuzzleData;
@@ -93,7 +103,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
     float GlobalProgressionPercentage = 0.0f;
 
-    // Transition settings for smooth color changes
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
     float TransitionSpeed = 2.0f;
 
@@ -104,10 +113,22 @@ public:
     UUserWidget* HUDWidget;
 
     UPROPERTY()
+    UUserWidget* PlayerHUDWidget;
+
+    UPROPERTY()
     UProgressBar* ProgressBar;
 
     UPROPERTY()
     UTextBlock* InteractLabel;
+
+    UPROPERTY()
+    UTextBlock* ObjectiveLabel;
+
+    UPROPERTY()
+    UTextBlock* TaskLabel;
+
+    UPROPERTY()
+    int32 CurrentPuzzleIndex = 0;
 
     void OnMachineStartFixing(AP_FixableMachine* Machine);
     void OnMachineStopFixing(AP_FixableMachine* Machine);
@@ -122,6 +143,18 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Puzzle")
     float GetGlobalProgressionPercentage() const;
 
+    UFUNCTION(BlueprintCallable, Category = "Puzzle")
+    int32 GetCurrentPuzzleIndex() const { return CurrentPuzzleIndex; }
+
+    UFUNCTION(BlueprintCallable, Category = "Puzzle")
+    FText GetCurrentObjective() const;
+
+    UFUNCTION(BlueprintCallable, Category = "Puzzle")
+    FText GetCurrentTask() const;
+
+    UFUNCTION(BlueprintCallable, Category = "Puzzle")
+    void ActivateNextPuzzle();
+
     UFUNCTION(BlueprintCallable, Category = "Lighting")
     void UpdatePointLights();
 
@@ -130,11 +163,14 @@ public:
 
 protected:
     void InitializeHUD();
+    void InitializePlayerHUD();
     void RegisterMachines();
     bool VerifyWidgets() const;
     void CalculateGlobalProgression();
     void UpdatePointLightForPuzzle(int32 PuzzleIndex, float CompletionPercentage);
     int32 FindPuzzleIndex(AP_FixableMachine* Machine);
+    void UpdatePlayerHUDLabels();
+    void SortPuzzlesByOrder();
 
     UFUNCTION()
     void OnAllMachinesFixed();

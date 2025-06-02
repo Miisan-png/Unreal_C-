@@ -1,5 +1,4 @@
-﻿// PuzzleManager.cpp - Updated implementation with smooth transitions
-#include "PuzzleManager.h"
+﻿#include "PuzzleManager.h"
 #include "P_FixableMachine.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
@@ -10,30 +9,65 @@
 
 APuzzleManager::APuzzleManager()
 {
-    PrimaryActorTick.bCanEverTick = true; // Enable ticking for smooth transitions
+    PrimaryActorTick.bCanEverTick = true;
+    
+    HUDWidget = nullptr;
+    PlayerHUDWidget = nullptr;
+    ProgressBar = nullptr;
+    InteractLabel = nullptr;
+    ObjectiveLabel = nullptr;
+    TaskLabel = nullptr;
+    CurrentHighlightedMachine = nullptr;
+}
+
+APuzzleManager::~APuzzleManager()
+{
+    if (HUDWidget && IsValid(HUDWidget) && !IsEngineExitRequested())
+    {
+        HUDWidget->RemoveFromParent();
+    }
+    
+    if (PlayerHUDWidget && IsValid(PlayerHUDWidget) && !IsEngineExitRequested())
+    {
+        PlayerHUDWidget->RemoveFromParent();
+    }
+    
+    HUDWidget = nullptr;
+    PlayerHUDWidget = nullptr;
+    ProgressBar = nullptr;
+    InteractLabel = nullptr;
+    ObjectiveLabel = nullptr;
+    TaskLabel = nullptr;
+    CurrentHighlightedMachine = nullptr;
 }
 
 void APuzzleManager::BeginPlay()
 {
     Super::BeginPlay();
     
+    SortPuzzlesByOrder();
     InitializeHUD();
+    InitializePlayerHUD();
     RegisterMachines();
     UpdatePointLights();
     
-    // Initialize current values for all lights
+    if (PuzzleData.Num() > 0)
+    {
+        PuzzleData[0].bIsActive = true;
+        UpdatePlayerHUDLabels();
+    }
+    
     for (FPointLightData& LightData : PointLights)
     {
-        if (LightData.PointLight)
+        if (LightData.PointLight && IsValid(LightData.PointLight))
         {
             LightData.CurrentColor = LightData.StartColor;
             LightData.CurrentIntensity = LightData.StartIntensity;
             LightData.TargetColor = LightData.StartColor;
             LightData.TargetIntensity = LightData.StartIntensity;
             
-            // Set initial light values
             UPointLightComponent* PointLightComp = Cast<UPointLightComponent>(LightData.PointLight->GetLightComponent());
-            if (PointLightComp)
+            if (PointLightComp && IsValid(PointLightComp))
             {
                 PointLightComp->SetLightColor(LightData.CurrentColor);
                 PointLightComp->SetIntensity(LightData.CurrentIntensity);
@@ -48,19 +82,16 @@ void APuzzleManager::Tick(float DeltaTime)
     
     if (bUseInterpolation)
     {
-        // Smooth interpolation for all lights
         for (FPointLightData& LightData : PointLights)
         {
-            if (LightData.PointLight)
+            if (LightData.PointLight && IsValid(LightData.PointLight))
             {
                 UPointLightComponent* PointLightComp = Cast<UPointLightComponent>(LightData.PointLight->GetLightComponent());
-                if (PointLightComp)
+                if (PointLightComp && IsValid(PointLightComp))
                 {
-                    // Interpolate color and intensity
                     LightData.CurrentColor = FLinearColor::LerpUsingHSV(LightData.CurrentColor, LightData.TargetColor, DeltaTime * TransitionSpeed);
                     LightData.CurrentIntensity = FMath::FInterpTo(LightData.CurrentIntensity, LightData.TargetIntensity, DeltaTime, TransitionSpeed);
                     
-                    // Apply the interpolated values
                     PointLightComp->SetLightColor(LightData.CurrentColor);
                     PointLightComp->SetIntensity(LightData.CurrentIntensity);
                 }
@@ -98,11 +129,30 @@ void APuzzleManager::InitializeHUD()
     }
 }
 
+void APuzzleManager::InitializePlayerHUD()
+{
+    if (PlayerHUDWidgetClass)
+    {
+        APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+        if (PC)
+        {
+            PlayerHUDWidget = CreateWidget<UUserWidget>(PC, PlayerHUDWidgetClass);
+            if (PlayerHUDWidget)
+            {
+                PlayerHUDWidget->AddToViewport();
+
+                ObjectiveLabel = Cast<UTextBlock>(PlayerHUDWidget->GetWidgetFromName(TEXT("objective_label")));
+                TaskLabel = Cast<UTextBlock>(PlayerHUDWidget->GetWidgetFromName(TEXT("task_label")));
+            }
+        }
+    }
+}
+
 void APuzzleManager::RegisterMachines()
 {
     for (int32 i = 0; i < PuzzleData.Num(); ++i)
     {
-        if (PuzzleData[i].Machine)
+        if (PuzzleData[i].Machine && IsValid(PuzzleData[i].Machine))
         {
             PuzzleData[i].Machine->SetPuzzleManager(this);
         }
@@ -140,15 +190,18 @@ void APuzzleManager::OnMachineFixed(AP_FixableMachine* Machine)
     {
         PuzzleData[PuzzleIndex].CompletionPercentage = 100.0f;
         PuzzleData[PuzzleIndex].bIsCompleted = true;
+        PuzzleData[PuzzleIndex].bIsActive = false;
         UpdatePointLightForPuzzle(PuzzleIndex, 100.0f);
+        
+        ActivateNextPuzzle();
     }
 
-    if (ProgressBar)
+    if (ProgressBar && IsValid(ProgressBar))
     {
         ProgressBar->SetVisibility(ESlateVisibility::Hidden);
     }
     
-    if (InteractLabel)
+    if (InteractLabel && IsValid(InteractLabel))
     {
         InteractLabel->SetVisibility(ESlateVisibility::Hidden);
     }
@@ -158,7 +211,7 @@ void APuzzleManager::OnMachineFixed(AP_FixableMachine* Machine)
     bool bAllFixed = true;
     for (const FPuzzleData& Puzzle : PuzzleData)
     {
-        if (Puzzle.Machine && !Puzzle.Machine->IsFixed())
+        if (Puzzle.Machine && IsValid(Puzzle.Machine) && !Puzzle.Machine->IsFixed())
         {
             bAllFixed = false;
             break;
@@ -215,6 +268,14 @@ bool APuzzleManager::VerifyWidgets() const
 
 void APuzzleManager::OnAllMachinesFixed()
 {
+    if (ObjectiveLabel && IsValid(ObjectiveLabel))
+    {
+        ObjectiveLabel->SetText(FText::FromString(TEXT("OBJECTIVE: ALL SYSTEMS OPERATIONAL")));
+    }
+    if (TaskLabel && IsValid(TaskLabel))
+    {
+        TaskLabel->SetText(FText::FromString(TEXT("All repairs completed successfully!")));
+    }
 }
 
 void APuzzleManager::HideProgressBar()
@@ -237,6 +298,38 @@ float APuzzleManager::GetPuzzleCompletionPercentage(int32 PuzzleIndex) const
 float APuzzleManager::GetGlobalProgressionPercentage() const
 {
     return GlobalProgressionPercentage;
+}
+
+FText APuzzleManager::GetCurrentObjective() const
+{
+    if (CurrentPuzzleIndex >= 0 && CurrentPuzzleIndex < PuzzleData.Num())
+    {
+        return PuzzleData[CurrentPuzzleIndex].ObjectiveText;
+    }
+    return FText::FromString(TEXT("OBJECTIVE: UNKNOWN"));
+}
+
+FText APuzzleManager::GetCurrentTask() const
+{
+    if (CurrentPuzzleIndex >= 0 && CurrentPuzzleIndex < PuzzleData.Num())
+    {
+        return PuzzleData[CurrentPuzzleIndex].TaskText;
+    }
+    return FText::FromString(TEXT("No active tasks"));
+}
+
+void APuzzleManager::ActivateNextPuzzle()
+{
+    for (int32 i = 0; i < PuzzleData.Num(); ++i)
+    {
+        if (!PuzzleData[i].bIsCompleted && !PuzzleData[i].bIsActive)
+        {
+            PuzzleData[i].bIsActive = true;
+            CurrentPuzzleIndex = i;
+            UpdatePlayerHUDLabels();
+            return;
+        }
+    }
 }
 
 void APuzzleManager::CalculateGlobalProgression()
@@ -278,19 +371,16 @@ void APuzzleManager::UpdatePointLightForPuzzle(int32 PuzzleIndex, float Completi
             float Alpha = CompletionPercentage / 100.0f;
             Alpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
 
-            // Calculate target values
             FLinearColor NewTargetColor = FMath::Lerp(LightData.StartColor, LightData.EndColor, Alpha);
             float NewTargetIntensity = FMath::Lerp(LightData.StartIntensity, LightData.EndIntensity, Alpha);
 
             if (bUseInterpolation)
             {
-                // Set target values for smooth interpolation (handled in Tick)
                 LightData.TargetColor = NewTargetColor;
                 LightData.TargetIntensity = NewTargetIntensity;
             }
             else
             {
-                // Apply immediately without interpolation
                 UPointLightComponent* PointLightComp = Cast<UPointLightComponent>(LightData.PointLight->GetLightComponent());
                 if (PointLightComp)
                 {
@@ -308,14 +398,11 @@ void APuzzleManager::UpdatePointLightForPuzzle(int32 PuzzleIndex, float Completi
 
 void APuzzleManager::FindAndAssignPointLights()
 {
-    // Clear existing array
     PointLights.Empty();
     
-    // Find all PointLight actors in the world
     TArray<AActor*> FoundPointLights;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), APointLight::StaticClass(), FoundPointLights);
     
-    // Add them to our array
     for (int32 i = 0; i < FoundPointLights.Num(); ++i)
     {
         if (APointLight* PointLight = Cast<APointLight>(FoundPointLights[i]))
@@ -326,9 +413,8 @@ void APuzzleManager::FindAndAssignPointLights()
             NewLightData.EndColor = FLinearColor::Green;
             NewLightData.StartIntensity = 0.0f;
             NewLightData.EndIntensity = 3000.0f;
-            NewLightData.AssociatedPuzzleIndex = i; // Auto-assign based on order found
+            NewLightData.AssociatedPuzzleIndex = i;
             
-            // Initialize interpolation values
             NewLightData.CurrentColor = NewLightData.StartColor;
             NewLightData.CurrentIntensity = NewLightData.StartIntensity;
             NewLightData.TargetColor = NewLightData.StartColor;
@@ -337,8 +423,6 @@ void APuzzleManager::FindAndAssignPointLights()
             PointLights.Add(NewLightData);
         }
     }
-    
-    UE_LOG(LogTemp, Warning, TEXT("Found and assigned %d PointLights with auto-indexed puzzle associations"), PointLights.Num());
 }
 
 int32 APuzzleManager::FindPuzzleIndex(AP_FixableMachine* Machine)
@@ -351,4 +435,23 @@ int32 APuzzleManager::FindPuzzleIndex(AP_FixableMachine* Machine)
         }
     }
     return -1;
+}
+
+void APuzzleManager::UpdatePlayerHUDLabels()
+{
+    if (ObjectiveLabel && IsValid(ObjectiveLabel) && TaskLabel && IsValid(TaskLabel))
+    {
+        if (CurrentPuzzleIndex >= 0 && CurrentPuzzleIndex < PuzzleData.Num())
+        {
+            ObjectiveLabel->SetText(PuzzleData[CurrentPuzzleIndex].ObjectiveText);
+            TaskLabel->SetText(PuzzleData[CurrentPuzzleIndex].TaskText);
+        }
+    }
+}
+
+void APuzzleManager::SortPuzzlesByOrder()
+{
+    PuzzleData.Sort([](const FPuzzleData& A, const FPuzzleData& B) {
+        return A.PuzzleOrder < B.PuzzleOrder;
+    });
 }

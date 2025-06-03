@@ -9,6 +9,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
 #include "PickableItem.h"
+#include "PhysicsObject.h"
 
 UPhysicsGrabComponent::UPhysicsGrabComponent()
 {
@@ -100,7 +101,6 @@ void UPhysicsGrabComponent::PerformGrabTrace()
         }
     }
 
-    // Update highlighting
     if (NewHighlightedActor != HighlightedActor)
     {
         if (HighlightedActor)
@@ -125,10 +125,8 @@ void UPhysicsGrabComponent::UpdateGrabbedObject(float DeltaTime)
         return;
     }
 
-    // Apply physics forces to move the object
     ApplyGrabForce(DeltaTime);
 
-    // Debug visualization
     if (bShowDebugLines)
     {
         FVector TargetLocation = GetGrabTargetLocation();
@@ -166,7 +164,6 @@ void UPhysicsGrabComponent::StartGrab()
     if (!Camera)
         return;
 
-    // Perform trace to get the exact hit point
     FVector CameraLocation = Camera->GetComponentLocation();
     FVector CameraForward = Camera->GetForwardVector();
     FVector TraceEnd = CameraLocation + (CameraForward * GrabRange);
@@ -188,7 +185,6 @@ void UPhysicsGrabComponent::StartGrab()
         GrabbedActor = HighlightedActor;
         GrabbedComponent = HitResult.GetComponent();
         
-        // Calculate grab offset from object center
         FVector ObjectCenter = GrabbedComponent->GetComponentLocation();
         GrabOffset = HitResult.ImpactPoint - ObjectCenter;
         
@@ -196,17 +192,13 @@ void UPhysicsGrabComponent::StartGrab()
         CurrentRotationPitch = 0.0f;
         CurrentRotationYaw = 0.0f;
 
-        // Play grab sound
         if (GrabSound)
         {
             UGameplayStatics::PlaySound2D(GetWorld(), GrabSound);
         }
 
-        // Remove from highlighting since we're now grabbing it
         SetObjectHighlight(HighlightedActor, false);
         HighlightedActor = nullptr;
-
-        UE_LOG(LogTemp, Warning, TEXT("Grabbed object: %s"), *GrabbedActor->GetName());
     }
 }
 
@@ -219,13 +211,10 @@ void UPhysicsGrabComponent::StopGrab()
     
     if (GrabbedActor)
     {
-        // Play release sound
         if (ReleaseSound)
         {
             UGameplayStatics::PlaySound2D(GetWorld(), ReleaseSound);
         }
-
-        UE_LOG(LogTemp, Warning, TEXT("Released object: %s"), *GrabbedActor->GetName());
     }
 
     GrabbedActor = nullptr;
@@ -245,16 +234,13 @@ void UPhysicsGrabComponent::ThrowObject()
     FVector ThrowDirection = Camera->GetForwardVector();
     FVector ThrowVelocity = ThrowDirection * ThrowForce;
 
-    // Add player velocity for more realistic throwing
     if (ACharacter* PlayerCharacter = Cast<ACharacter>(GetOwner()))
     {
         ThrowVelocity += PlayerCharacter->GetVelocity();
     }
 
-    // Apply impulse
     GrabbedComponent->AddImpulse(ThrowVelocity, NAME_None, true);
 
-    // Stop grabbing
     StopGrab();
 }
 
@@ -266,7 +252,6 @@ void UPhysicsGrabComponent::RotateGrabbedObject(float PitchInput, float YawInput
     CurrentRotationPitch += PitchInput * RotationSpeed * GetWorld()->GetDeltaSeconds();
     CurrentRotationYaw += YawInput * RotationSpeed * GetWorld()->GetDeltaSeconds();
 
-    // Apply rotation as angular velocity
     FVector AngularVelocity = FVector(CurrentRotationPitch, CurrentRotationYaw, 0.0f);
     GrabbedComponent->SetPhysicsAngularVelocityInDegrees(AngularVelocity);
 }
@@ -276,14 +261,18 @@ void UPhysicsGrabComponent::SetObjectHighlight(AActor* Actor, bool bHighlight)
     if (!Actor)
         return;
 
-    // Try to highlight PickableItem first
+    if (APhysicsObject* PhysicsObj = Cast<APhysicsObject>(Actor))
+    {
+        PhysicsObj->Highlight(bHighlight);
+        return;
+    }
+
     if (APickableItem* PickableItem = Cast<APickableItem>(Actor))
     {
         PickableItem->Highlight(bHighlight);
         return;
     }
 
-    // Fallback to manual material highlighting
     UStaticMeshComponent* MeshComp = Actor->FindComponentByClass<UStaticMeshComponent>();
     if (MeshComp)
     {
@@ -314,16 +303,13 @@ bool UPhysicsGrabComponent::CanGrabObject(AActor* Actor, UPrimitiveComponent* Co
     if (!Actor || !Component)
         return false;
 
-    // Must have physics simulation enabled
     if (!Component->IsSimulatingPhysics())
         return false;
 
-    // Check mass limit
     float ObjectMass = Component->GetMass();
     if (ObjectMass > MaxGrabMass)
         return false;
 
-    // Must be movable
     if (Component->Mobility != EComponentMobility::Movable)
         return false;
 
@@ -339,7 +325,6 @@ FVector UPhysicsGrabComponent::GetGrabTargetLocation() const
     FVector CameraLocation = Camera->GetComponentLocation();
     FVector CameraForward = Camera->GetForwardVector();
     
-    // Target position in front of camera, adjusted by grab offset
     FVector TargetLocation = CameraLocation + (CameraForward * GrabDistance);
     
     return TargetLocation;
@@ -353,11 +338,10 @@ void UPhysicsGrabComponent::ApplyGrabForce(float DeltaTime)
     FVector CurrentLocation = GrabbedComponent->GetComponentLocation();
     FVector TargetLocation = GetGrabTargetLocation();
     
-    // Calculate force direction and magnitude
     FVector ForceDirection = TargetLocation - CurrentLocation;
     float Distance = ForceDirection.Size();
     
-    if (Distance > 0.1f) // Avoid jittering when very close
+    if (Distance > 0.1f)
     {
         ForceDirection.Normalize();
         

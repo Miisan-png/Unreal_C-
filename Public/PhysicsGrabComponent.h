@@ -23,7 +23,6 @@ protected:
 public:    
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-    // Grab Settings
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Grab")
     float GrabRange = 800.0f;
 
@@ -42,7 +41,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Grab")
     float RotationSpeed = 90.0f;
 
-    // Visual Settings
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Grab")
     bool bShowGrabPoint = true;
 
@@ -52,14 +50,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Grab")
     UMaterialInterface* GrabHighlightMaterial;
 
-    // Audio
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Grab")
     USoundBase* GrabSound;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Grab")
     USoundBase* ReleaseSound;
 
-    // Functions
     UFUNCTION(BlueprintCallable, Category = "Physics Grab")
     void StartGrab();
 
@@ -79,7 +75,6 @@ public:
     AActor* GetGrabbedActor() const { return GrabbedActor; }
 
 protected:
-    // Internal state
     UPROPERTY()
     bool bIsGrabbing = false;
 
@@ -107,7 +102,6 @@ protected:
     UPROPERTY()
     float CurrentRotationYaw = 0.0f;
 
-    // Internal functions
     void PerformGrabTrace();
     void UpdateGrabbedObject(float DeltaTime);
     void SetObjectHighlight(AActor* Actor, bool bHighlight);

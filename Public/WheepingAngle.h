@@ -30,14 +30,20 @@ public:
     UPROPERTY(EditAnywhere, Category = "Components")
     UStaticMeshComponent* AngelMeshComponent;
 
-    UPROPERTY(EditAnywhere, Category = "Movement")
-    float MovementSpeed;
+    UPROPERTY(EditAnywhere, Category = "Teleport")
+    float TeleportDistance = 300.0f;
 
-    UPROPERTY(EditAnywhere, Category = "Movement")
+    UPROPERTY(EditAnywhere, Category = "Teleport")
+    float TeleportCooldown = 2.0f;
+
+    UPROPERTY(EditAnywhere, Category = "Teleport")
     float YawOffset;
 
-    UPROPERTY(EditAnywhere, Category = "Movement")
-    bool bCanMove;
+    UPROPERTY(EditAnywhere, Category = "Teleport")
+    bool bCanTeleport;
+
+    UPROPERTY(EditAnywhere, Category = "Teleport")
+    float DirectionMultiplier = -1.0f;
 
     UPROPERTY(EditAnywhere, Category = "Destruction")
     float DestroyDelay;
@@ -69,6 +75,9 @@ private:
 
     bool bShouldBreak;
     bool bBroken;
+    float LastTeleportTime;
 
     FTimerHandle DebugBreakTimerHandle;
+
+    void TeleportBehindPlayer(const FVector& PlayerLocation, const FRotator& PlayerRotation);
 };

@@ -31,6 +31,7 @@ AMyFPSCharacter::AMyFPSCharacter()
     BreathingPhase = 0.0f;
     LastZVelocity = 0.0f;
     bWasInAir = false;
+    PhysicsGrabComponent = CreateDefaultSubobject<UPhysicsGrabComponent>(TEXT("PhysicsGrabComponent"));
 }
 
 void AMyFPSCharacter::BeginPlay()
@@ -166,6 +167,42 @@ void AMyFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 
     PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &AMyFPSCharacter::StartInteract);
     PlayerInputComponent->BindAction("Interact", IE_Released, this, &AMyFPSCharacter::StopInteract);
+
+    PlayerInputComponent->BindAction("PhysicsGrab", IE_Pressed, this, &AMyFPSCharacter::StartPhysicsGrab);
+    PlayerInputComponent->BindAction("PhysicsGrab", IE_Released, this, &AMyFPSCharacter::StopPhysicsGrab);
+    PlayerInputComponent->BindAction("ThrowObject", IE_Pressed, this, &AMyFPSCharacter::ThrowObject);
+}
+
+void AMyFPSCharacter::StartPhysicsGrab()
+{
+    if (bUsePhysicsGrab && PhysicsGrabComponent)
+    {
+        PhysicsGrabComponent->StartGrab();
+    }
+}
+
+void AMyFPSCharacter::StopPhysicsGrab()
+{
+    if (PhysicsGrabComponent)
+    {
+        PhysicsGrabComponent->StopGrab();
+    }
+}
+
+void AMyFPSCharacter::ThrowObject()
+{
+    if (PhysicsGrabComponent)
+    {
+        PhysicsGrabComponent->ThrowObject();
+    }
+}
+
+void AMyFPSCharacter::RotateObject(float PitchInput, float YawInput)
+{
+    if (bAllowObjectRotation && PhysicsGrabComponent)
+    {
+        PhysicsGrabComponent->RotateGrabbedObject(PitchInput, YawInput);
+    }
 }
 
 void AMyFPSCharacter::MoveForward(float Value)
@@ -372,22 +409,49 @@ void AMyFPSCharacter::PerformCameraRaycast()
 
 void AMyFPSCharacter::StartInteract()
 {
-    if (ItemManagerRef && ItemManagerRef->IsLookingAtItem())
+    if (bUsePhysicsGrab && PhysicsGrabComponent && !PhysicsGrabComponent->IsGrabbing())
     {
-        ItemManagerRef->PickupItem();
+        StartPhysicsGrab();
+        
+        if (!PhysicsGrabComponent->IsGrabbing())
+        {
+            if (ItemManagerRef && ItemManagerRef->IsLookingAtItem())
+            {
+                ItemManagerRef->PickupItem();
+            }
+            else if (ItemManagerRef && ItemManagerRef->IsHoldingItem())
+            {
+                ItemManagerRef->DropItem();
+            }
+            else if (InteractManagerRef)
+            {
+                InteractManagerRef->StartInteract();
+            }
+        }
     }
-    else if (ItemManagerRef && ItemManagerRef->IsHoldingItem())
+    else
     {
-        ItemManagerRef->DropItem();
-    }
-    else if (InteractManagerRef)
-    {
-        InteractManagerRef->StartInteract();
+        if (ItemManagerRef && ItemManagerRef->IsLookingAtItem())
+        {
+            ItemManagerRef->PickupItem();
+        }
+        else if (ItemManagerRef && ItemManagerRef->IsHoldingItem())
+        {
+            ItemManagerRef->DropItem();
+        }
+        else if (InteractManagerRef)
+        {
+            InteractManagerRef->StartInteract();
+        }
     }
 }
-
 void AMyFPSCharacter::StopInteract()
 {
+    if (PhysicsGrabComponent && PhysicsGrabComponent->IsGrabbing())
+    {
+        StopPhysicsGrab();
+    }
+    
     if (InteractManagerRef)
     {
         InteractManagerRef->StopInteract();

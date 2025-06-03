@@ -100,6 +100,5 @@ protected:
     FVector CurrentSwayOffset;
 
 public:
-    // Called when the item is highlighted (looked at)
-    void Highlight(bool bHighlight);
+    virtual void Highlight(bool bHighlight);
 };

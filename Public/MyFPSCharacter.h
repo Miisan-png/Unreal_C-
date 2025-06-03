@@ -4,8 +4,10 @@
 #include "GameFramework/Character.h"
 #include "Camera/CameraComponent.h"
 #include "ItemNameWidget.h"
-#include "InteractManager.h" 
+#include "InteractManager.h"
+#include "PhysicsGrabComponent.h"  
 #include "MyFPSCharacter.generated.h"
+
 
 class AItemManager;
 
@@ -27,12 +29,16 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Raycast")
     float GetRaycastDistance() const { return RaycastDistance; }
 
-    // We'll keep this for backward compatibility but primarily use Start/StopInteract
     void Interact();
     
-    // New functions for handling held interaction
     void StartInteract();
     void StopInteract();
+
+    void StartPhysicsGrab();
+    void StopPhysicsGrab();
+    void ThrowObject();
+    
+    void RotateObject(float PitchInput, float YawInput);
 
 protected:
     virtual void BeginPlay() override;
@@ -82,6 +88,15 @@ protected:
 
     UPROPERTY()
     AInteractManager* InteractManagerRef;
+    
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics Interaction")
+    UPhysicsGrabComponent* PhysicsGrabComponent;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Interaction")
+    bool bUsePhysicsGrab = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Interaction")
+    bool bAllowObjectRotation = true;
     
     FRotator InitialCameraRotation;
     FVector InitialCameraLocation;
